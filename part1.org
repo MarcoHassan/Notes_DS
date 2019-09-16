@@ -1,0 +1,408 @@
+* Environment and Programming Languages
+
+Having complete freedom of choice with programming languages, tools,
+and frameworks improves creative thinking and evolvement. But at the
+end of the day, data scientists must fully shape their assets before
+delivery because there can be many pitfalls if they’re not.
+
+From a data scientist perspective, it’s common sense that the actual
+technology doesn’t matter too much from a functional perspective
+because the models and algorithms that are used are defined
+mathematically.
+
+The issue however with this simplicistic view is that not all
+technology bears the same costs.
+
+For non-functional requirements, this view doesn’t quite hold. For
+example, the availability and cost of experts for a certain
+programming language and technology varies heavily.
+
+‘The technology that I know best’ is fine for a proof of concept
+(PoC), hackathon, or start-up style project. However, when it comes to
+industry and enterprise project scale, some architectural guidance on
+technology usage must be in place, howsoever it might manifest.
+
+
+* Some Coding best practices
+
+To keep in mind and deploy when programming:
+
+- Test driven development
+
+- Automated testing
+
+- continuous inegration (is a development practice that requires
+  developers to integrate code into a shared repository several times
+  a day. Each check-in is then verified by an automated build,
+  allowing teams to detect problems early.)
+
+- refactoring to microservices.
+
+
+* Pipelines
+
+Very convenient process of designing your data processing in machine
+learning flow. These are a couple of steps which you always have to do
+before the actual machine learning starts. Pipelines often boils down
+to /data prepossessing/ and feature engineering.
+
+The following pipelines encompass the two:
+
+1. /String Indexing/: you cannot work with strings in machine learning
+   algorithms, so you have to numerically reindex your string classes
+   to numeric classes. This is the logic of factors in R so to
+   say. For instance if you have two classes "pass" & "fail" you can
+   reindex them to 1 & 0.
+
+2. /Normalize data/: this makes sure that each feature has the same
+   value range. This makes machine learning and algorithms much more
+   efficient from a computation perspective.
+
+3. /One Hot Encoding/: it consists on going from a long data format
+   with multiple classes on a single column to a wide format of data
+   that display a class per column and just binary entries in the
+   columns themselves.
+
+4. /Modeling/: here you  train your machine learning algorithms.
+
+The entire point of pipelines is that once your pipeline steps 1-3
+were successfully applied, you can then try with different modeling
+algorithms or different parameter sets without changing anything
+before. The overall idea is that you can fuse your complete data
+processing flow into one single pipeline and that single pipeline, you
+can further use downstream.
+
+** TODO Insert Example of ML pipeline as in the IBM videos.
+
+
+* Model Validation
+
+** Cross-validation
+
+As in the best practice it is recommended to test your model accuracy
+using /validation data/ not used for the model training.
+
+Especially in the case of /cross-sectional/ data (cause they do not
+bear a time dimension where most recent observation might carry a
+higher importance grade as is the case for /times series data/) the
+question arises on what kind of data to use.
+
+The best practice is to select between 70-80% of the data and use
+those to train the model while keeping the others as validation
+data. The validation dataset might contain however important
+information that you do not want to loose. Here *crossvalidation*
+kicks in.
+
+The basic idea is to use different data subset as training and
+validation sets and leverage therefore the entire information content
+of your data. You can then select your final model based on the
+different results of the different estimations based on different
+training and validation dataset.
+
+A common approach might be
+
+| Training Dataset | Validation dataset | Training Dataset |
+|              80% |                20% |               0% |
+|              40% |                20% |              40% |
+|              20% |                20% |              60% |
+|               0% |                20% |              80% |
+
+
+** Hyper-parameter tuning 
+
+This extends the idea of using a /validation dataset/ for double
+checking your model results.
+
+The idea is that sometimes it might be necessary to perform some
+/hyper-parameter/ tuning. This means that for a model to perform the
+best you might be required to tune some of the parameters before
+actually estimating your model (*ex-ante model estimation*).
+
+When doing so it might well be that the tuning of the hyper-parameters
+might overfit the given training and validation dataset without being
+itself beneficial to an out of sample dataset. In order to check
+against such threat a further layer of validation data is added on top
+of the usual training and validation dataset. This is called the /test dataset/.
+
+Moreover, notice as a side note that usually hyperparameters are tuned
+through a grid search. This consists basically on nested for loops
+looking for the best hyperparameters that perform the best across the
+three dataset discussed above: training, validation and testing.
+ 
+
+** Precision and Recall
+
+In pattern recognition, information retrieval and binary
+classification, precision (also called positive predictive value) is
+the fraction of relevant instances among the retrieved instances,
+while recall (also known as sensitivity) is the fraction of relevant
+instances that have been retrieved over the total amount of relevant
+instances. Both precision and recall are therefore based on an
+understanding and measure of relevance.
+
+Suppose a computer program for recognizing dogs in photographs
+identifies 8 dogs in a picture containing 12 dogs and some cats. Of
+the 8 identified as dogs, 5 actually are dogs (true positives), while
+the rest are cats (false positives). The program's precision is 5/8
+while its recall is 5/12. When a search engine returns 30 pages only
+20 of which were relevant while failing to return 40 additional
+relevant pages, its precision is 20/30 = 2/3 while its recall is 20/60
+= 1/3. So, in this case, precision is "how useful the search results
+are", and recall is "how complete the results are".
+
+
+*** F1 Test
+
+In statistical analysis of binary classification, the F1 score (also
+F-score or F-measure) is a measure of a test's accuracy. It considers
+both the precision p and the recall r of the test to compute the score
+
+F-score = 2* (precision*recall)/(precision+recall)
+
+Notice that if the estimation is perfect, in the sense that both
+precision and recall are 1, then the F-score sums up to 1, while if
+the estimation is low, the F-score tends to 0. Its domain in general
+is [0,1].
+
+
+* lightweight IBM Cloud Garage Method 
+
+This for data science includes a process model to map individual
+technology components to the reference architecture.
+
+
+* Control ur lifecycle data science work
+
+[[https://developer.ibm.com/articles/the-lightweight-ibm-cloud-garage-method-for-data-science/][idea data science project workflow]]
+
+
+* ObjectStar
+
+A good cloud solution to store data. In ObjectStar, you have unlimited
+capacity, redundancy, fail-over, and automated backup, and the best
+I/O performance.
+
+So it is important to understand how to operate on data directly
+stored on Objectstar.
+
+
+* Real Time Data Processing
+
+Often, data loses value within a couple of seconds. It is important
+therefore to understand how to process data in real time.
+
+
+* Storage Possibilities
+
+|              | SQL  | NoSQL | Object Storage |
+|--------------+------+-------+----------------|
+| Storage Cost | high | low   | very low       |
+| Scalability  | low  | high  | very high      |
+| Query Speed  | high | low   | very low       |
+| Flexibility  | low  | high  | very low       |
+|--------------+------+-------+----------------|
+
+*SQL*: SQL databases are well known and understood. They support high
+integrity, and even possibilities of data normalization. Subsets of
+data can be accessed immediately, and fast through indexes. Finally,
+SQL is an open standard, and at least in theory, changing the database
+system doesn't need to change any source code.
+
+On the other hand the cons of SQL are the hard scalability and the the
+high storage because of the need for SQL databases of very reliable storage
+systems. Generally, not tolerating temporary inaccessible storage.
+
+*NoSQL*: NoSQL database system, in contrast, don't force the data to
+comply with any pre-different schema. Therefore, each entry can have
+its own schema, and a table can have a mixture of those entries having
+different schemas. NoSQL databases can cope with disk failures,
+therefore, cheap disks can be used, pushing storage costs down.
+Finally, NoSQL databases are linearly scalable. So in case you need to
+double the amount of storage, just double the amount of disks. And if
+you need to double the amount of processing power, just double the
+number of servers.
+
+But this flexibility comes at a price. So generally, NoSQL databases
+don't support either normalization, nor data integrity, so the
+programs interacting with them have to take care of those properties
+if needed. Moreover, access to data is slower than in SQL
+databases. The main reason is, the data is stored in JSON
+documents. This means the database must read and pass each and every
+document, in order to respond to a search query. Custom use and
+indexes can address the problem, but never reach the query performance
+of SQL database.
+
+*Object Storage*: ObjectStorage behaves like a remote file system with
+virtually unlimited amount of storage capacity and built in high
+availability. Storage cost is very low. It is hard to find online
+storage cheaper than ObjectStorage. As with NoSQL databases,
+ObjectStorage is linearly scalable, so you basically just objects or
+files without needing to worry about the amount of data you are
+storing. Since object storage behaves more like a file system, there
+is no explicit schema definition in place. Therefore, schema migration
+is as smooth as in NoSQL databases, since the application itself has
+to take care of it.
+
+
+** Cloudant
+
+A NoSQL database. All open source. Cloudant was a, born in the cloud,
+solution so there doesn't exist an offering you can download and
+install yourself.  It runs Apache NoSQL database in its
+core. /ApacheCouchDB/ at that time was not horizontally scalable. So of
+course, you could scale it vertically by just adding additional CPU
+cores in the main memory. But there was no support for horizontal
+scaling, which basically means you add additional physical machines to
+form a cluster.
+
+To mediate this issue, Cloudant implemented a system called
+BigCouch in order to add exactly this missing horizontal scaling
+support to ApacheCouchDB, and donated it as open source. BigCouch, by
+sitting in front of a ApacheCouchDB cluster, API-wise behaves like a
+single CouchDB instance but takes care about distributing the workload
+using a hashing algorithm. Using MVCC, CouchDB supports massively,
+parallel high throughput writes and updates.
+So, for example, concurrency is addressed by simply storing the same
+document twice, with different revision IDs, and leaving resolving of
+those conflicts up to the application, which can issue appropriate
+merge and delete operations. Horizontal scaling is supported by a
+replicated horizontally scaled cluster architecture with offline
+support.
+
+Notice that through cloudant and its offline replicas there is no
+guarantee that replicas are in sync at a particular point in time,
+but each document will be in sync eventually.
+
+
+* Terminology
+
+** Supervised vs Unsupervised
+
+/Supervised Machine Learning/ is when you have a labeled autocome. You
+know the outcome for the training set and based on that you want to
+predict new unlabled data.
+
+Supervised learning is either regression or classification.
+
+If you have unlabled data, then we talk about /unsupervised
+learning/. We learn from the data. We might identify clusters of data
+despite not knowing what the dimension of the data represent because
+of them being unlabled. Mostly concerned about measuring distance
+among data points in hyperdimensional vector spaces.
+
+** Unsupervised learning:
+
+It is mostly about distance about data points. The major purpose is to
+identify clusters in the data here.
+
+*** K-Means
+
+Has the hyper-parameter of the number of clusters. This has to be
+instantiated ex-ante model estimation.
+
+Assume you set the hyper-parameter equals 3. Then the k-means
+algorithm will randomly assign 3 kluster centroids in the vector
+space. It will then compute the euclidian distance between every point
+and every cluster centroid. It takes then the minimum for each point
+and assign this to the minimum distance centroid.
+
+ So, after this has happened, for average centroid, the point cloud
+ surrounding the centroid is taken, and the mean of all those points
+ is computed, and that gives us a new centroid.
+
+The iteration then continues until convergence happens.
+
+Notice however a /limitation/ of k-means. Here you can recenter your
+centroid just according to /spherical/ data aggregation and /cluster boundaries/. 
+
+
+*** Hierarchical cluster 
+
+Two approaches exists here. Top-down and bottom-up.
+
+The video is not very intuitive. The idea on /bottom-up/ is to start
+with how many clusters as points. You will then merge the next two
+clusters that are the closest to each other according to some distance
+measure. You iterate until a single general cluster exists and check
+then at statistics about the effect and benefit of the added
+additional cluster and choose the ultimate amount of clusters to
+handle your data.
+
+The idea of /top-up/ is essentially the same. The only difference here
+is that you split according to some distance measure instead of
+aggregating according to it.
+
+Notice the two benefit of hierarchical clustering in comparison to K-means. 
+
+1. You do not have to perform any grid search for the cluster number
+   hyper-parameter, which saves a lot of calculation power.
+
+2. You are not limited by spherical cluster boundaries.
+
+*** Density based clustering
+
+Very interesting technique. Advisable to check at
+
+
+
+* Neural Networks
+
+** Perceptrons
+
+This are the first neural network ever created. Their output is a
+binary classifier.  They are supervised learning algorithms in the
+sense that they train the network with examples, and then adjust the
+weights based on the actual output from the desired output.
+
+
+
+
+* System ML
+
+This is apparently a big thing. Consider to explore it further. There seems to be a lot to learn wrt to that.
+
+System ML provides a R-like language called Declarative Machine
+Learning, or DML, for data scientists to implement machine learning
+algorithm.  DML stands for declarative machine learning.
+
+SystemML has a cost less compiler that automatically generates hybrid
+runtime execution plans. That are composed of single node and
+distributed operations. These plans are generated depending on data
+and cluster characteristics, such as data size, data sparsity, cluster
+size and memory configuration.
+
+In our previous example, if the user specifies a small linear, then
+SystemML might compile a single node plan. On the other hand, if
+linear is large, then SystemML might compile Hadoop or a Spark plan.
+This is the benefit of SystemML it does development and especially
+deployment of machine learning algorithms easy.
+
+
+* Evaluation Measures
+
+For classification: accuracy (how many times did you classify correctly?)
+
+Regression: R^{2}
+
+
+
+* Literature
+
+https://www.coursera.org/lecture/advanced-machine-learning-signal-processing/how-ml-pipelines-work-BcOsM
+
+[[https://developer.ibm.com/articles/cc-beginner-guide-machine-learning-ai-cognitive/%20][nice overview summarizing recent ML & AI changes]]
+
+[[https://developer.ibm.com/articles/cc-machine-learning-deep-learning-architectures/][Neural Network Overvirview]] -> very well written, take it as a valid cheat sheet.
+
+[[https://developer.ibm.com/articles/cc-cognitive-neural-networks-deep-dive/][Fun Neural Network Intro with some basics algorithms code]]
+
+[[https://towardsdatascience.com/autoencoders-for-the-compression-of-stock-market-data-28e8c1a2da3e][Auto ENcoders]]
+
+
+* Helping frameworks
+
+[[https://developer.ibm.com/open/projects/adversarial-robustness-toolbox/][Adversarial Robustness Toolbox]]
+
+[[https://www.ibm.com/blogs/watson/2018/10/ibm-ai-openscale-operate-and-automate-ai-with-trust/][NeuNetS & OpenScale]]
+
+[[https://www.coursera.org/promo/IBMCoderDS?utm_campaign=Coder2018&utm_medium=institutions&utm_source=IBM][AI Fairness 360]]
