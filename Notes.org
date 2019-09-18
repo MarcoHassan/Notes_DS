@@ -386,6 +386,75 @@ Regression: R^{2}
 
 
 
+* Covariance Matrix
+
+A very interesting property of the covariance matrix I never heard
+that far is that multiplying any vector with it, it will turn the
+vector in the direction of the /greatest variance/.
+
+From this fact it results that the computed eigenvector of the
+covariance matrix points exactly to the greatest variance direction.
+
+
+* Signals
+
+If you want to describe a signal you need three things: 
+
+- frequency of a signal <=> "how many waves/occurrences per time period"
+
+- amplitude of the signal <=> "what is the strength of the signal and how it goes (vertical height)"
+
+- Phase shift <=> "when the signal starts; usually this is not at (0,0)"
+
+Given this three piece of information we can then recreate virtually any signal through the following formula:
+
+#+BEGIN_EXPORT latex
+signal = Amplitude * \sin(\pi * frequency * time + phase_shift)
+#+END_EXPORT
+
+You can then generate complex signals by creating distinct signals
+based through the function above and merge them together to a unique,
+single complex signal.
+
+** Fourier Transform
+
+The basic idea behind the Fourier Transform is that any continuous
+signal in the time domain can be represented uniquely by an infinite
+series of sinusoids.
+
+Once this is clear it is possible to transition from the time to the
+frequency domain according to some complex function.
+
+The exact mathematical expression are omitted to this stage, important
+is however to notice that you can Fourier Transform allows you to
+transform any complex system in time through its frequency domain into
+the single signal components. Moreover, there exists a discrete fast
+fourier transform that allows you to apply a fast fourier transform to
+a discrete number of observation like is usually the case when
+observing a sample data set. 
+
+Notice that when measuring a signal a sample you cannot distinguish
+signals with a frequency higher than your sampling frequency. That is
+for instance if you measure at frequency of 2 data points per second
+you will never be able to recognize and distinguish signals with a
+frequency of four. Connecting the data points you might obtain a flat
+line missing the cycles in the series. This also impacts the discrete
+fast fourier transformation.
+
+When applying the transformation if a high frequency signal cannot be
+modeled by the transform due to the low sample size, it will be
+modeled by the fourier transform as a linear combination of the
+possible frequencies that the sample size allows. This leads to the
+usual observation of many different signals with low amplitude when
+applying a fourier transform.
+
+Finally, note that the discrete fourier transform is computationally
+intensive requiring O(n^{2}) computation. A faster solution
+nonetheless exists, this consists of applying a fast fourier transform
+leveraging the symmetry in the fourier transform and therefore reducing
+the number of computations to O(nlog(n)).
+
+
 * Literature
 
 https://www.coursera.org/lecture/advanced-machine-learning-signal-processing/how-ml-pipelines-work-BcOsM
