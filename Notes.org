@@ -349,13 +349,118 @@ Very interesting technique. Advisable to check at
 
 ** Perceptrons
 
-This are the first neural network ever created. Their output is a
+These are the first neural network ever created. Their output is a
 binary classifier.  They are supervised learning algorithms in the
 sense that they train the network with examples, and then adjust the
 weights based on the actual output from the desired output.
 
+The basic idea of a perceptron is to use assign weights to each of the
+observation and through an activation function arrive to the desired
+output.
+
+In this sense perceptrons are nothing else but a linear regression
+activated by an activation function. This can be the rounded result of
+a logistic function given that leverages the data observation or any
+other function properly mapping to {0,1}.
 
 
+** Convolutional Neural Networks
+
+The basic idea is to iterate over two functions to get to the desired
+output: /convolution/ and /pooling/.
+
+In the convolution part you usually /slide/ over a function and apply
+the convolution /map/ to transform the output of the original function
+to some other measure.
+
+The second layer important to convolutional neural networks is the
+pooling layer. This is used for dimensionality reduction with the
+intent of not loosing too much spatial information. Other naming
+convention for pooling are /subsampling/ or /down sampling/.
+
+The two mentioned layers above are usually used as hidden layers of a
+feed forward neural network. This means that you apply them to the
+input data, before training in the last iteration your feed forward
+neural network (for instance a perceptron).
+
+
+** Recurrent Neural Networks
+
+So, in the last lecture, we've learned that a single layer feed
+forward neural networks can represent any mathematical function.
+
+The issue is however that training complex forward neural networks
+might be computationally very expensive. To overcome such an issue
+many different classes of neural networks were developed, among which
+/recurrent neural networks/.
+
+The basic idea is that as processing sequences and time series require
+some sort of memory since dynamic temporal behavior is also adding
+information to the whole picture, by introducing loop back connections
+between the neurons, a recurrent neural network can remember past
+events. Any recurrent neural network can be unfolded through time and
+then basically forms a feed forward neural network so that the point
+for using such neural networks is rather for the efficiency of the
+estimation.
+
+Many different classes of recurrent neural networks exists. I will
+explore the more widely used LSTM next.
+
+*** LSTM 
+
+As a feed forward neural network a LSTM or /long short term memory/
+maps an input x_t to an output h_t by using weights and an activation
+function.
+
+[[image-url:~/Desktop/Screenshots/Bildschirmfoto%202019-09-19%20um%2009.09.45.png]]
+
+So the first thing we notice is that there is no direct connection
+between xt and ht. All data flows through ct, which is the so called
+*cell state*.  Cell state is the actual memory of the LSTM
+neuron.
+
+On top of it there are three additional units present in a LSTM
+neuron. An /input gate/ an /output gate/ and a /forget gate/. Those
+three gates are the one that actually controls the state of the cell
+state.
+
+The first thing we notice is that xt is not only used as input of the
+neuron but also as input to the gate. 
+
+So the input gate, as the other gates, has a separate weight vector
+which is straight from the input data and learns to control the influx
+of information into the cell's data city.
+
+In other words, through the weight vector of the input gate the neuron
+can learn from creating data. When it is a good idea to open the gate
+and have the input start in the cell. Often it is a bad idea to
+remember things and close the influx information into the cell state
+c_t.
+
+Finally it is important to notice that all the cell state has an
+influence on the gate. This is again accomplished through a separate
+weight vector so that the actual input gate is controlled by the
+historic cell state as well as by the actual value of the cell state c_t.
+
+In 1999 the forget gate was added, three researchers noticed back than
+that without the capability of forgetting the cell state c_t may grow
+indefinitely and eventually causes the network to break down.
+
+** Autoencoders
+
+Usually neural networks are trained to find a hidden function, f which
+maps X to Y. But an autoencoder is different, it tries to map X to
+X'. Or in other words, it tries to reconstruct whatever vector, X it
+sees on the left-hand side on right-hand side. This is also known as
+the identity function.
+
+ As there are no direct connections between X and X', all data has to
+ pass through layer, Z. Since layer, Z has less neurons than X, all
+ data needs to flow through this so-called neural bottleneck. This
+ leads to a sort of identity function which is resistant to noise and
+ doesn't learn any irrelevant data.
+
+[[image-url:~/Desktop/Screenshots/1_44eDEuZBEsmG_TCAKRI3Kw@2x.png]]
 
 * System ML
 
@@ -453,6 +558,13 @@ intensive requiring O(n^{2}) computation. A faster solution
 nonetheless exists, this consists of applying a fast fourier transform
 leveraging the symmetry in the fourier transform and therefore reducing
 the number of computations to O(nlog(n)).
+
+
+** TODO Wavelets                                                      :write:
+
+Very interesting point. Coursera, gives a nice intuition about it and
+what is the idea behind. Write it down at some point and study them
+deeper if you will ever have time.
 
 
 * Literature
