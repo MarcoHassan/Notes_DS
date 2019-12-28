@@ -1,0 +1,1956 @@
+* Topic of Choice
+
+transfer learning with differential learning rates.
+
+But as those preceding layers have already been trained on the
+ImageNet dataset, maybe they need only a little bit of training as
+compared to our newer layers? PyTorch offers a simple way of making
+this happen.
+
+The traditional way of guarding against this is to amass large
+quantities of data. By seeing more data, the model gets a more general
+idea of the problem it is trying to solve. If you view the situation
+as a compression problem, then if you prevent the model from simply
+being able to store all the answers (by overwhelming its storage
+capacity with so much data), it’s forced to compress the input and
+therefore produce a solution that cannot simply be storing the answers
+within itself. This is fine, and works well, but say we have only a
+thousand images and we’re doing transfer learning. What can we do?
+
+Obviously to us, they’re the same image. The second one is just a
+mirrored copy of the first. The tensor representation is going to be
+different, as the RGB values will be in different places in the 3D
+image. But it’s still a cat, so the model training on this image will
+hopefully learn to recognize a cat shape on the left or right side of
+the frame, rather than simply associating the entire image with
+cat. Different ideas on the same pattern are the one of adjusting the
+brightness of the image etc. (think of =ColorJitter=).
+
+/Transforming the color scale of the image/:
+
+Well, there’s some evidence from recent deep learning work in
+colorization that other color spaces can produce slightly higher
+accuracy than RGB. A mountain may be a mountain, but the tensor that
+gets formed in each space’s representation will be different, and one
+space may capture something about your data better than another. 
+
+
+* Image Recognition - Transfer Learning
+
+Start Small and Get Bigger!  Here’s a tip that seems odd, but obtains
+real results: start small and get bigger. What I mean is if you’re
+training on 256 × 256 images, create a few more datasets in which the
+images have been scaled to 64 × 64 and 128 × 128. Create your model
+with the 64 × 64 dataset, fine-tune as normal, and then train the
+exact same model with the 128 × 128 dataset. Not from scratch, but
+using the parameters that have already been trained. Once it looks
+like you’ve squeezed the most out of the 128 × 128 data, move on to
+your target 256 × 256 data. You’ll probably find a percentage point or
+two improvement in accuracy.
+
+
+** DONE Insert some basic explaination of convolution and maxpooling.
+   CLOSED: [2019-12-05 Thu 18:38]
+
+
+   See presentation. Here more for me at the beginning.
+
+*** DONE Convolution Parameters 
+    CLOSED: [2019-11-30 Sat 12:35]
+
+    Mainly from [[https://www.pyimagesearch.com/2018/12/31/keras-conv2d-and-convolutional-layers/][this source]].
+
+    The Conv2D =filters= parameter, determines the number of kernels
+    to convolve with the input volume. Each of these operations produces a
+    2D activation map.
+
+    The second required parameter you need to provide to the Keras Conv2D
+    class is the =kernel_size= , a 2-tuple specifying the width and height
+    of the 2D convolution window.
+
+    The =strides parameter= is a 2-tuple of integers, specifying the
+    “step” of the convolution along the x and y axis of the input
+    volume. Typically you’ll see strides of 2×2 as a replacement to max
+    pooling.
+
+    Notice that in pytorch the parameters naming convention differs
+    slightly although the concept stays the same.
+
+    There instead of the filters parameter you have to specify
+    =in_channels= and =out_channels=.
+
+    Lets say you have a image of size 64x64. It is composed of R-G-B of
+    64x64 each, so the input size is 64x64x3 and 3 is the input channel in
+    this case. Now you want to convolve this input with a kernel of 5x5x3,
+    you get an output of 64x64x1 (with padding). Suppose you have 100 such
+    kernels and convolve each one of them with the input, you get
+    64x64x100. Here the output channels are 100
+
+*** DONE Other Important Layers
+    CLOSED: [2019-12-09 Mon 10:46]
+
+    [[https://medium.com/technologymadeeasy/the-best-explanation-of-convolutional-neural-networks-on-the-internet-fbb8b1ad5df8][max pooling]]. I like this explaination.
+
+
+    =BatchNorm=, short for batch normalization, is a simple layer that
+    has one task in life: using two learned parameters (meaning that
+    it will be trained along with the rest of the network) to try to
+    ensure that each minibatch that goes through the network has a
+    mean centered around zero with a variance of 1.
+
+
+** DONE Import Necessary Libraries & Configure Ipython
+   CLOSED: [2019-12-10 Tue 21:25]
+:properties:
+:header-args:ipython: :session kernel-72924.json :cache yes :async t
+:end:
+
+
+  #+begin_src ipython :cache no
+  ## classic pytorch tools
+  import torch 
+  import torch.nn.functional as F
+  import torch.nn as nn ## nn import the neural network submodule of pytorch.
+  import torch.optim as optim
+
+  ## for displaying models using tensorboard and get model structure
+  from torch.utils.tensorboard import SummaryWriter
+  from torchsummary import summary
+
+  ## tools for CV in pytorch
+  import torchvision 
+  from torchvision import transforms
+  import torchvision.models as models
+
+  ## to instantiate the dataset in pytorch
+  from torch.utils.data import DataLoader, sampler
+
+  ## for basic data and directory manipulation
+  import numpy as np
+  import pandas as pd
+  import os
+  import shutil
+
+  # Image manipulations
+  from PIL import Image
+
+ #+end_src
+
+ #+RESULTS:
+ : 0 - 0a1ac0bf-68bf-480d-aa41-1f8083fd4b8b
+
+ Configure for plotting
+
+#+begin_src ipython :cache no
+ import matplotlib.pyplot as plt
+ import seaborn as sns
+ %matplotlib inline 
+ %config InlineBackend.figure_format = 'png'
+#+end_src
+
+#+RESULTS:
+: # Out[2]:
+
+
+** DONE Transfer Learning Caltech 101 dataset
+   CLOSED: [2019-12-10 Tue 21:22]
+:properties:
+:header-args:ipython: :session kernel-72924.json :async t
+:end:
+
+*** DONE Global Parameters & Functions
+    CLOSED: [2019-12-02 Mon 12:39]
+
+**** DONE Global Parameters
+     CLOSED: [2019-12-09 Mon 15:21]
+
+  #+begin_src ipython
+  criterion = nn.CrossEntropyLoss()
+  BATCH_SIZE = 4
+
+  path = "/Users/marcohassan/Desktop/Learning/Data_Science_Learning/transfer_learning/data101/"
+
+  traindir = path + 'train/'
+  validdir = path + 'validate/'
+  testdir = path + 'test/'
+#+end_src
+
+#+RESULTS:
+: # Out[18]:
+
+**** DONE Training Function
+     CLOSED: [2019-12-02 Mon 12:39]
+
+
+#+begin_src ipython
+def Optimizer(model):
+    return optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+#+end_src
+
+#+RESULTS:
+: # Out[5]:
+
+  #+begin_src ipython
+  def train(model,
+	    criterion,
+	    train_loader,
+	    valid_loader,
+	    save_file_name,
+	    max_epochs_stop=3,
+	    n_epochs=20,
+	    print_every=2):
+
+      """Train a PyTorch Model
+
+      Params
+      --------
+	  model (PyTorch model): cnn to train
+	  criterion (PyTorch loss): objective to minimize
+	  optimizer (PyTorch optimizier): optimizer to compute gradients of model parameters
+	  train_loader (PyTorch dataloader): training dataloader to iterate through
+	  valid_loader (PyTorch dataloader): validation dataloader used for early stopping
+	  save_file_name (str ending in '.pt'): file path to save the model state dict
+	  max_epochs_stop (int): maximum number of epochs with no improvement in validation loss for early stopping
+	  n_epochs (int): maximum number of training epochs
+	  print_every (int): frequency of epochs to print training stats
+
+      Returns
+      --------
+	  model (PyTorch model): trained cnn with best weights
+	  history (DataFrame): history of train and validation loss and accuracy
+      """
+
+      optimizer = Optimizer(model)
+
+      # Early stopping intialization
+      epochs_no_improve = 0
+      valid_loss_min = np.Inf
+
+      valid_max_acc = 0
+      history = []
+
+      # Number of epochs already trained (if using loaded in model weights)
+      try:
+	  print(f'Model has been trained for: {model.epochs} epochs.\n')
+
+      except:
+	  model.epochs = 0
+	  print(f'Starting Training from Scratch.\n')
+
+      # Main loop
+      for epoch in range(n_epochs):
+
+	  # keep track of training and validation loss each epoch
+	  train_loss = 0.0
+	  valid_loss = 0.0
+
+	  train_acc = 0
+	  valid_acc = 0
+
+	  # Set to training
+	  model.train()
+
+	  # Training loop
+	  for ii, (data, target) in enumerate(train_loader):
+
+	      # Clear gradients
+	      optimizer.zero_grad()
+	      # Predicted outputs are log probabilities
+	      output = model(data)
+
+	      # Loss and backpropagation of gradients
+	      loss = criterion(output, target)
+	      loss.backward()
+
+	      # Update the parameters
+	      optimizer.step()
+
+	      # Track train loss by multiplying average loss by number of examples in batch
+	      train_loss += loss.item() * data.size(0)
+
+	      # Calculate accuracy by finding max log probability
+	      _, pred = torch.max(output, dim=1)
+	      correct_tensor = pred.eq(target.data.view_as(pred))
+	      # Need to convert correct tensor from int to float to average
+	      accuracy = torch.mean(correct_tensor.type(torch.FloatTensor))
+	      # Multiply average accuracy times the number of examples in batch
+	      train_acc += accuracy.item() * data.size(0)
+
+	      # Track training progress
+	      print(
+		  f'Epoch: {epoch}\t{100 * (ii + 1) / len(train_loader):.2f}% complete.',
+		  end='\r')
+
+	  # After training loops ends, start validation
+	  else:
+	      model.epochs += 1
+
+	      # Don't need to keep track of gradients
+	      with torch.no_grad():
+		  # Set to evaluation mode so that dropouts and other
+		  # layers introduced for smoothing the optimization
+		  # function and coming to more sensibe results will not
+		  # apply.
+		  model.eval()
+
+		  # Validation loop
+		  for data, target in valid_loader:
+
+		      # Forward pass
+		      output = model(data)
+
+		      # Validation loss
+		      loss = criterion(output, target)
+		      # Multiply average loss times the number of examples in batch
+		      valid_loss += loss.item() * data.size(0)
+
+		      # Calculate validation accuracy
+		      _, pred = torch.max(output, dim=1)
+		      correct_tensor = pred.eq(target.data.view_as(pred))
+		      accuracy = torch.mean(
+			  correct_tensor.type(torch.FloatTensor))
+		      # Multiply average accuracy times the number of examples
+		      valid_acc += accuracy.item() * data.size(0)
+
+		  # Calculate average losses
+		  train_loss = train_loss / len(train_loader.dataset)
+		  valid_loss = valid_loss / len(valid_loader.dataset)
+
+		  # Calculate average accuracy
+		  train_acc = train_acc / len(train_loader.dataset)
+		  valid_acc = valid_acc / len(valid_loader.dataset)
+
+		  history.append([train_loss, valid_loss, train_acc, valid_acc])
+
+		  # Print training and validation results
+		  if (epoch + 1) % print_every == 0:
+		      print(
+			  f'\nEpoch: {epoch} \tTraining Loss: {train_loss:.4f} \tValidation Loss: {valid_loss:.4f}'
+		      )
+		      print(
+			  f'\t\tTraining Accuracy: {100 * train_acc:.2f}%\t Validation Accuracy: {100 * valid_acc:.2f}%'
+		      )
+
+		  # Save the model if validation loss decreases
+		  if valid_loss < valid_loss_min:
+		      # Save model
+		      torch.save(model.state_dict(), save_file_name)
+		      # Track improvement
+		      epochs_no_improve = 0
+		      valid_loss_min = valid_loss
+		      valid_best_acc = valid_acc
+		      best_epoch = epoch
+
+		  # Otherwise increment count of epochs with no improvement
+		  else:
+		      epochs_no_improve += 1
+		      # Trigger early stopping
+		      if epochs_no_improve >= max_epochs_stop:
+			  print(
+			      f'\nEarly Stopping! Total epochs: {epoch}. Best epoch: {best_epoch} with loss: {valid_loss_min:.2f} and acc: {100 * valid_acc:.2f}%'
+			  )
+
+			  # Load the best state dict
+			  model.load_state_dict(torch.load(save_file_name))
+			  # Attach the optimizer
+			  model.optimizer = optimizer
+
+			  # Format history
+			  history = pd.DataFrame(
+			      history,
+			      columns=[
+				  'train_loss', 'valid_loss', 'train_acc',
+				  'valid_acc'
+			      ])
+			  return model, history
+
+      # Attach the optimizer
+      model.optimizer = optimizer
+      # Record overall time and print out stats
+      print(
+	  f'\nBest epoch: {best_epoch} with loss: {valid_loss_min:.2f} and acc: {100 * valid_acc:.2f}%'
+      )
+      # Format history
+      history = pd.DataFrame(
+	  history,
+	  columns=['train_loss', 'valid_loss', 'train_acc', 'valid_acc'])
+
+      return model, history
+  #+end_src
+
+  #+RESULTS:
+  : 0 - 19dba83d-ac69-4ce0-abcc-3658875aeea6
+
+**** DONE Model Saving Function
+     CLOSED: [2019-12-02 Mon 12:39]
+
+      #+begin_src ipython
+      def save_checkpoint(model, path):
+
+	  # Basic details
+	  checkpoint = {
+	      'epochs': model.epochs,
+	  }
+
+	  checkpoint['fc'] = model.fc
+	  checkpoint['state_dict'] = model.state_dict()
+
+	  # Add the optimizer
+	  checkpoint['optimizer'] = model.optimizer
+	  checkpoint['optimizer_state_dict'] = model.optimizer.state_dict()
+
+	  # Save the data to the path
+	  torch.save(checkpoint, path)
+      #+end_src
+
+      #+RESULTS:
+      : # Out[6]:
+
+**** DONE Plotting Function 
+     CLOSED: [2019-12-02 Mon 12:39]
+
+ #+begin_src ipython
+ def imshow_tensor(image, ax=None, title=None):
+     """Imshow for Tensor."""
+
+     if ax is None:
+         fig, ax = plt.subplots()
+
+     # Set the color channel as the third dimension
+     image = image.numpy().transpose((1, 2, 0))
+
+     # Reverse the preprocessing steps
+     mean = np.array([0.485, 0.456, 0.406])
+     std = np.array([0.229, 0.224, 0.225])
+     image = std * image + mean
+
+     # Clip the image pixel values; Given an interval, values outside
+     # the interval are clipped to the interval edges.
+     image = np.clip(image, 0, 1)
+
+     ax.imshow(image)
+     plt.axis('off')
+
+     return ax
+ #+end_src
+
+ #+RESULTS:
+ : # Out[12]:
+
+ Plot standard image
+
+ #+begin_src ipython
+ def imshow(image):
+     """Display image"""
+     plt.figure(figsize=(6, 6))
+     plt.imshow(image)
+     plt.axis('off')
+     plt.show()
+ #+end_src
+
+ #+RESULTS:
+ : # Out[13]:
+
+ #+begin_src ipython
+ def img_NotNormalized_tensor(image, ax=None, title=None):
+
+     if ax is None:
+         fig, ax = plt.subplots()
+
+     # Set the color channel as the third dimension
+     image = image.numpy().transpose((1, 2, 0))
+
+     # Clip the image pixel values; Given an interval, values outside
+     # the interval are clipped to the interval edges.
+     image = np.clip(image, 0, 1)
+
+     ax.imshow(image)
+     plt.axis('off')
+
+     return ax
+ #+end_src
+
+ #+RESULTS:
+ : # Out[14]:
+
+**** DONE Colour Scale
+     CLOSED: [2019-12-01 Sun 09:53]
+
+      From pytorch book in the reference. Very interesting.
+
+      #+BEGIN_QUOTE
+      This may seem a little odd to even bring up, but so far all our image
+      work has been in the fairly standard 24-bit RGB color space, where
+      every pixel has an 8-bit red, green, and blue value to indicate the
+      color of that pixel. However, other color spaces are available!
+
+      A popular alternative is HSV, which has three 8-bit values for hue,
+      saturation, and value. Some people feel this system more accurately
+      models human vision than the traditional RGB color space. But why does
+      this matter? A mountain in RGB is a mountain in HSV, right?
+      #+END_QUOTE
+
+      Try that. Find all the possible colour scales [[https://pillow.readthedocs.io/en/3.1.x/handbook/concepts.html#concept-modes][here]].
+
+      #+begin_src ipython
+      def _random_colour_space(x):
+	  output = x.convert("HSV") ## a method from the PIL.Image lib.
+	  return output
+      #+end_src
+
+      #+RESULTS:
+      : # Out[15]:
+
+You can also manually implement other color scale transformations; for instance YCbCr.
+
+#+begin_src ipython
+def _rgb2ycbcr(x):
+    ## transform PIL image to numpy
+    im = np.asarray(x)
+
+    cbcr = np.empty_like(im)
+
+    r = im[:,:,0]
+    g = im[:,:,1]
+    b = im[:,:,2]
+    # Y
+    cbcr[:,:,0] = .299 * r + .587 * g + .114 * b
+    # Cb
+    cbcr[:,:,1] = 128 - .169 * r - .331 * g + .5 * b
+    # Cr
+    cbcr[:,:,2] = 128 + .5 * r - .419 * g - .081 * b
+
+    return Image.fromarray(np.uint8(cbcr))
+#+end_src
+
+#+RESULTS:
+: # Out[16]:
+
+
+#+begin_src ipython
+hsv_transform = transforms.Lambda(lambda x: _random_colour_space(x))
+
+ycbcr_transform = transforms.Lambda(lambda x: _rgb2ycbcr(x))
+#+end_src
+
+#+RESULTS:
+: # Out[17]:
+
+Given the function above we can then randomly change the color scale
+leveraging the =transforms.RandomApply= function.
+
+
+*** DONE Dataset Download, Clean, Organize
+    CLOSED: [2019-12-02 Mon 10:51]
+
+**** DONE Download the data
+     CLOSED: [2019-12-02 Mon 17:12]
+
+     You can import the data from [[http://www.vision.caltech.edu/Image_Datasets/Caltech101/#Download][this]] webpage.
+
+     #+begin_src ipython
+     !wget http://www.vision.caltech.edu/Image_Datasets/Caltech101/101_ObjectCategories.tar.gz
+     #+end_src
+
+     #+RESULTS:
+     : # Out[11]:
+
+     Unzip the file.
+
+     #+begin_src ipython
+     tar -xvf 101_ObjectCategories.tar.gz
+     #+end_src
+
+     #+RESULTS:
+     : 10 - e6fc570b-5c7d-422f-baff-a620f122cbbe
+
+     Pictures of objects belonging to 101 categories. About 40 to 800
+     images per category. Most categories have about 50 images.
+
+     The following are bash commands.
+
+     Count the number of classes in the dataset.
+
+     #+begin_src sh
+     ls -1 ./101_ObjectCategories/ | wc -l
+     #+end_src
+
+     #+RESULTS:
+     : 101
+
+     There is a weird category =BACKGROUND_Google=. The images there are
+     mixed. I believe this is the excess category. Kill it.
+
+     #+begin_src sh
+     rm -r ./101_ObjectCategories/BACKGROUND_Google/
+     #+end_src
+
+     #+RESULTS:
+
+     #+begin_src ipython :results output
+     ls -1 ./101_ObjectCategories/ | wc -l
+     #+end_src
+
+     #+RESULTS:
+     : 11 - 0ee12a34-6fc2-48db-bf93-2ffda73ea1be
+
+**** IN-PROGRESS Split into train, test, validation
+
+#+begin_src ipython
+len(os.listdir("./101_ObjectCategories/"))
+#+end_src
+
+#+RESULTS:
+: 13 - bfb93ba3-6654-40aa-92c5-87db30605ebc
+
+List the number of images per category
+
+#+BEGIN_SRC ipython :results none 
+for filename in os.listdir("./101_ObjectCategories/"):
+    print(len(os.listdir(str("./101_ObjectCategories/" + filename))))
+#+END_SRC
+
+Make a directory for each class in the train, test, validate directories
+
+#+begin_src ipython
+for filename in os.listdir("./101_ObjectCategories/"):
+    print(filename)
+    for split in ['train/','test/','validate/']:
+        os.mkdir(path + split + filename)
+#+end_src
+
+#+RESULTS:
+: 15 - 75df9fee-a311-443c-aa08-e8db7354839f
+
+***** DONE Split the sample according to a 50% (train), 25% (train), 25% (test)
+      CLOSED: [2019-11-30 Sat 22:02]
+
+ #+begin_src ipython
+ for filename in os.listdir("./101_ObjectCategories/"):
+     print(filename)
+     i = 1
+     for img in os.listdir(str("./101_ObjectCategories/" + filename)):
+         if i <= len(os.listdir(str("./101_ObjectCategories/" + filename)))//4:
+             shutil.copyfile(str("./101_ObjectCategories/" + filename + "/" + img), 
+                             path + "test/" + filename + "/" + img)
+
+         elif i <= (len(os.listdir(str("./101_ObjectCategories/" + filename)))//4)*2:
+             shutil.copyfile(str("./101_ObjectCategories/" + filename + "/" + img), 
+                             path + "validate/" + filename + "/" + img)
+
+         else:
+             shutil.copyfile(str("./101_ObjectCategories/" + filename + "/" + img), 
+                             path + "train/" + filename + "/" + img)
+
+         i += 1
+ #+end_src
+
+ #+RESULTS:
+ : 16 - f1d1f541-a5a8-4035-9b7e-4c63749646ac
+
+***** TODO Assert that the number in each folder is true
+
+#+begin_src ipython
+len(os.listdir(str("./101_ObjectCategories/" + filename)))//4
+#+end_src
+
+#+RESULTS:
+: 17 - de7d01f9-dc9b-415d-aede-c170a3a0f3e0
+
+**** DONE Data Understanding
+     CLOSED: [2019-11-30 Sat 22:03]
+
+***** DONE Descriptive Statistics
+      CLOSED: [2019-11-30 Sat 22:02]
+
+This subchater is entirely copied from [[https://github.com/WillKoehrsen/pytorch_challenge/blob/master/Transfer%2520Learning%2520in%2520PyTorch.ipynb][this]] link.
+
+Initialize empty lists in order to add the necessary 
+
+#+begin_src ipython
+# Empty lists
+categories = []
+img_categories = []
+n_train = []
+n_valid = []
+n_test = []
+hs = []
+ws = []
+#+end_src
+
+#+RESULTS:
+: 19 - e13c9327-61f7-4ad5-8a58-9047e59e4ae3
+
+#+begin_src ipython
+# Iterate through each category
+for d in os.listdir(traindir):
+    categories.append(d)
+
+    # Number of each image
+    train_imgs = os.listdir(traindir + d)
+    valid_imgs = os.listdir(validdir + d)
+    test_imgs = os.listdir(testdir + d)
+    n_train.append(len(train_imgs))
+    n_valid.append(len(valid_imgs))
+    n_test.append(len(test_imgs))
+
+    # Find stats for train images
+    for i in train_imgs:
+        img_categories.append(d)
+        img = Image.open(traindir + d + '/' + i)
+        img_array = np.array(img)
+        # Shape
+        hs.append(img_array.shape[0])
+        ws.append(img_array.shape[1])
+
+# Dataframe of categories
+cat_df = pd.DataFrame({'category': categories,
+                       'n_train': n_train,
+                       'n_valid': n_valid, 'n_test': n_test}).\
+    sort_values('category')
+
+# Dataframe of training images
+image_df = pd.DataFrame({
+    'category': img_categories,
+    'height': hs,
+    'width': ws
+})
+#+end_src
+
+#+RESULTS:
+: 20 - 54775490-5dbe-46a0-ab3b-0ff990f9b1df
+
+Copy code and get 
+
+#+begin_src ipython :results output
+cat_df.sort_values('n_train', ascending=False, inplace=True)
+print(cat_df.head())
+print()
+print(cat_df.tail())
+#+end_src
+
+#+RESULTS:
+: 21 - d45bdfeb-2733-4ad9-8424-8fbae693ecbf
+
+
+Display the things in ascending order
+
+#+begin_src ipython :results file
+cat_df.set_index('category')['n_train'].plot.bar(
+    color='r', figsize=(20, 6))
+plt.xticks(rotation=80)
+plt.ylabel('Count')
+plt.title('Training Images by Category')
+#+end_src
+
+#+RESULTS:
+[[file:# Out[399]:
+: Text(0.5, 1.0, 'Training Images by Category')
+[[file:./obipy-resources/aa2fw4.png]]]]
+***** DONE Distribution of Images Sizes
+      CLOSED: [2019-11-30 Sat 22:11]
+
+#+begin_src ipython
+img_dsc = image_df.groupby('category').describe()
+img_dsc.head()
+#+end_src
+
+#+RESULTS:
+: 23 - 0e4165fa-1183-4d6a-83ab-040884a70f41
+
+
+#+begin_src ipython :results file
+plt.figure(figsize=(10, 6))
+sns.kdeplot(
+    img_dsc['height']['mean'], label='Average Height')
+sns.kdeplot(
+    img_dsc['width']['mean'], label='Average Width')
+plt.xlabel('Pixels')
+plt.ylabel('Density')
+plt.title('Average Size Distribution')
+#+end_src
+
+#+RESULTS:
+[[file:# Out[404]:
+: Text(0.5, 1.0, 'Average Size Distribution')
+[[file:./obipy-resources/T6amoj.png]]]]
+
+
+*** DONE Data Augmentation - Examples
+    CLOSED: [2019-12-02 Mon 18:06]
+**** DONE Resize the images
+     CLOSED: [2019-12-01 Sun 08:58]
+
+#+begin_src ipython
+## Create a dictionary with the different adjustments.
+transform =  {
+    'train':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'colorJitter':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'randomGrey':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.RandomGrayscale(p=0.9),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'horizontalRot':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     torchvision.transforms.RandomHorizontalFlip(p=1),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'verticalRot':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     torchvision.transforms.RandomVerticalFlip(p=1),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),     
+
+    'randomRot':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.RandomRotation((-45, 45)),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'randomAffine':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.RandomAffine((-45, 45), shear = 50),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'randomCrop':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.RandomResizedCrop(256),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'colHSV':
+    transforms.Compose(
+    [transforms.Resize((256, 256), interpolation=2),
+     transforms.RandomApply([hsv_transform], p=1),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])]),
+
+    'yCbCr':
+    transforms.Compose(
+    [transforms.RandomApply([ycbcr_transform], p=1),
+     transforms.Resize((256, 256), interpolation=2),
+     transforms.ToTensor(),
+     ## the standard of Imagenet; where the major Architectures were
+     ## trained
+     transforms.Normalize([0.485, 0.456, 0.406],
+                          [0.229, 0.224, 0.225])])
+    }
+
+#+end_src
+
+#+RESULTS:
+: # Out[13]:
+
+#+begin_src ipython :results file
+ex_img = Image.open(path + 'train/elephant/image_0002.jpg')
+imshow(ex_img)
+#+end_src
+
+#+RESULTS:
+[[file:# Out[14]:
+[[file:./obipy-resources/Ic2ccJ.png]]]]
+
+**** DONE Plot All together
+     CLOSED: [2019-12-02 Mon 17:56]
+
+
+#+begin_src ipython :results file
+i = 0
+plt.figure(figsize=(12, 12))
+
+for element in transform.keys():
+    i += 1
+    t = transform[element]
+
+    ax = plt.subplot(2, 5,i)
+    _ = imshow_tensor(t(ex_img), ax=ax)
+
+plt.tight_layout()
+
+#+end_src
+
+#+RESULTS:
+[[file:# Out[18]:
+[[file:./obipy-resources/UIaFgQ.png]]]]
+
+
+*** DONE Define definitive Transformation
+    CLOSED: [2019-12-02 Mon 18:06]
+
+We keep the transformations minimal for training our basic model. Then
+we will refine with transfer learning and data augmentation and check
+at the benefit.
+
+**** DONE Minimal Data Transformation
+     CLOSED: [2019-12-01 Sun 10:23]
+
+     #+begin_src ipython
+     ## Create a dictionary with the different adjustments.
+     BasicTransform =  {
+	 'train':
+	 transforms.Compose(
+	     [transforms.Resize((256, 256), interpolation=2),
+	      transforms.ToTensor(),
+	      transforms.Normalize([0.485, 0.456, 0.406],
+				   [0.229, 0.224, 0.225])]),
+
+	 'test':
+	 transforms.Compose(
+	     [transforms.Resize((256, 256), interpolation=2),
+	      transforms.ToTensor(),
+	      transforms.Normalize([0.485, 0.456, 0.406],
+				   [0.229, 0.224, 0.225])]),
+
+	 'validate':
+	 transforms.Compose(
+	     [transforms.Resize((256, 256), interpolation=2),
+	      transforms.ToTensor(),
+	      transforms.Normalize([0.485, 0.456, 0.406],
+				   [0.229, 0.224, 0.225])])
+     }
+
+     #+end_src
+
+     #+RESULTS:
+     : # Out[20]:
+
+**** DONE For data augmented CNN
+     CLOSED: [2019-12-02 Mon 18:06]
+
+     #+begin_src ipython
+	   ## Create a dictionary with the different adjustments.
+	   augmentedTransform =  {
+	       'train':
+	       transforms.Compose(
+		   [transforms.RandomApply([ycbcr_transform],p=0.1),
+		    transforms.Resize((256, 256), interpolation=2),
+		    transforms.RandomApply(
+			[transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)],0.1),
+		    transforms.RandomGrayscale(p=0.1),
+		    torchvision.transforms.RandomHorizontalFlip(p=0.1),
+		    torchvision.transforms.RandomVerticalFlip(p=0.1),
+		    transforms.RandomAffine((-45, 45), shear = 50),
+		    transforms.RandomApply([hsv_transform], p=0.1),
+		    transforms.ToTensor(),
+		    transforms.Normalize([0.485, 0.456, 0.406],
+					 [0.229, 0.224, 0.225])]),
+
+	       'test':
+	       transforms.Compose(
+		   [transforms.Resize((256, 256), interpolation=2),
+		    transforms.ToTensor(),
+		    transforms.Normalize([0.485, 0.456, 0.406],
+					 [0.229, 0.224, 0.225])]),
+
+	       'validate':
+	       transforms.Compose(
+		   [transforms.Resize((256, 256), interpolation=2),
+		    transforms.ToTensor(),
+		    transforms.Normalize([0.485, 0.456, 0.406],
+					 [0.229, 0.224, 0.225])])
+	   }
+
+     #+end_src
+
+     #+RESULTS:
+     : # Out[21]:
+
+
+*** DONE Data load in Pytorch
+    CLOSED: [2019-12-01 Sun 10:49]
+
+#+begin_src ipython
+# Datasets from each folder
+data = {
+    'train':
+    torchvision.datasets.ImageFolder(root=traindir, transform=BasicTransform['train']),
+    'validate':
+    torchvision.datasets.ImageFolder(root=validdir, transform=BasicTransform['validate']),
+    'test':
+    torchvision.datasets.ImageFolder(root=testdir, transform=BasicTransform['test'])
+}
+
+# Dataloader iterators
+dataloaders = {
+    'train': DataLoader(data['train'], batch_size=BATCH_SIZE, shuffle=True),
+    'validate': DataLoader(data['validate'], batch_size=BATCH_SIZE, shuffle=True),
+    'test': DataLoader(data['test'], batch_size=BATCH_SIZE, shuffle=True)
+}
+#+end_src
+
+#+RESULTS:
+: # Out[22]:
+
+Data loaders with data augmentation
+
+#+begin_src ipython
+# Datasets from each folder
+dataAugmented = {
+    'train':
+    torchvision.datasets.ImageFolder(root=traindir, transform=augmentedTransform['train']),
+    'validate':
+    torchvision.datasets.ImageFolder(root=validdir, transform=augmentedTransform['validate']),
+    'test':
+    torchvision.datasets.ImageFolder(root=testdir, transform=augmentedTransform['test'])
+}
+
+# Dataloader iterators
+dataloadersAugmented = {
+    'train': DataLoader(dataAugmented['train'], batch_size=BATCH_SIZE, shuffle=True),
+    'validate': DataLoader(dataAugmented['validate'], batch_size=BATCH_SIZE, shuffle=True),
+    'test': DataLoader(dataAugmented['test'], batch_size=BATCH_SIZE, shuffle=True)
+}
+#+end_src
+
+#+RESULTS:
+: # Out[23]:
+
+
+*** DONE Create Class Variable
+    CLOSED: [2019-12-01 Sun 14:06]
+
+    Create a class dict
+
+    #+begin_src ipython
+    try:
+	class_to_idx = data['train'].class_to_idx
+
+    except NameError:
+	class_to_idx = dataAugmented['train'].class_to_idx
+
+    idx_to_class = {
+	idx: class_
+	for class_, idx in class_to_idx.items()
+    }
+
+    list(idx_to_class.items())[:10]
+
+    #+end_src
+
+    #+RESULTS:
+    #+begin_example
+    # Out[24]:
+    ,#+BEGIN_EXAMPLE
+      [(0, 'Faces'),
+      (1, 'Faces_easy'),
+      (2, 'Leopards'),
+      (3, 'Motorbikes'),
+      (4, 'accordion'),
+      (5, 'airplanes'),
+      (6, 'anchor'),
+      (7, 'ant'),
+      (8, 'barrel'),
+      (9, 'bass')]
+    ,#+END_EXAMPLE
+    #+end_example
+
+
+*** DONE Train Minimal CNN
+    CLOSED: [2019-12-03 Tue 20:49]
+
+**** DONE Define a Simple Convolutional Neural Network
+     CLOSED: [2019-11-30 Sat 11:50]
+
+#+begin_src ipython
+class Net(nn.Module):
+
+    ##initialize in the class all the layers that involve some
+    ##parameter estimation
+    def __init__(self):
+        super(Net, self).__init__()
+        #in-channel, out-channel, kernel-size.
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.conv3 = nn.Conv2d(16, 32, 5)
+        
+        # decide the pooling function
+        self.pool = nn.MaxPool2d(2, 2)
+
+        ## quiz question where does the 28 comes from??
+        self.fc1 = nn.Linear(32*28*28, 32*28)
+        self.fc2 = nn.Linear(32*28, 400)
+        self.fc3 = nn.Linear(400, 101)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv3(x)))
+        x = x.view(-1, 32*28*28)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+#+end_src
+
+#+RESULTS:
+: # Out[25]:
+
+**** DONE Train the Network
+     CLOSED: [2019-11-30 Sat 11:51]
+
+Define the loss metrics you will leverage for your estimation
+
+Notice how in the example the usual learning rate of 0.001 is
+chosen. This has a big impact on how the neural network will be
+trained.
+
+Look at the size of the Network
+
+#+begin_src ipython :results output :results output
+net = Net()
+
+summary(net, input_size=(3, 256, 256), batch_size=BATCH_SIZE) 
+#+end_src
+
+#+RESULTS:
+#+begin_example
+----------------------------------------------------------------
+        Layer (type)               Output Shape         Param #
+================================================================
+            Conv2d-1           [4, 6, 252, 252]             456
+         MaxPool2d-2           [4, 6, 126, 126]               0
+            Conv2d-3          [4, 16, 122, 122]           2,416
+         MaxPool2d-4            [4, 16, 61, 61]               0
+            Conv2d-5            [4, 32, 57, 57]          12,832
+         MaxPool2d-6            [4, 32, 28, 28]               0
+            Linear-7                   [4, 896]      22,479,744
+            Linear-8                   [4, 400]         358,800
+            Linear-9                   [4, 101]          40,501
+================================================================
+Total params: 22,894,749
+Trainable params: 22,894,749
+Non-trainable params: 0
+----------------------------------------------------------------
+Input size (MB): 3.00
+Forward/backward pass size (MB): 27.60
+Params size (MB): 87.34
+Estimated Total Size (MB): 117.94
+----------------------------------------------------------------
+#+end_example
+
+***** DONE Thorough Training with validation
+      CLOSED: [2019-12-02 Mon 18:22]
+
+#+begin_src ipython :results output
+net = Net()
+
+simpleCNN, historysimpleCNN = train(net,
+                                    criterion,
+                                    dataloaders['train'],
+                                    dataloaders['validate'],
+                                    './simpleCNN.pth',
+                                    max_epochs_stop=1,
+                                    n_epochs=2,
+                                    print_every=1)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Epoch: 0	100.00% complete.
+Epoch: 0 	Training Loss: 3.7935 	Validation Loss: 3.2741
+		Training Accuracy: 21.62%	 Validation Accuracy: 29.18%
+Epoch: 1	100.00% complete.
+Epoch: 1 	Training Loss: 3.0010 	Validation Loss: 2.7910
+		Training Accuracy: 35.51%	 Validation Accuracy: 38.07%
+
+Best epoch: 1 with loss: 2.79 and acc: 38.07%
+#+end_example
+
+***** DONE Thorough training for data augmented dataset
+      CLOSED: [2019-12-03 Tue 20:49]
+
+#+begin_src ipython :results output
+net = Net()
+
+simpleAugCNN, historysimpleAugCNN = train(net,
+                                    criterion,
+                                    dataloadersAugmented['train'],
+                                    dataloadersAugmented['validate'],
+                                    './simpleAugmentedCNN.pth',
+                                    max_epochs_stop=1,
+                                    n_epochs=2,
+                                    print_every=1)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Starting Training from Scratch.
+
+Epoch: 0	100.00% complete.
+Epoch: 0 	Training Loss: 4.3016 	Validation Loss: 4.1742
+		Training Accuracy: 9.10%	 Validation Accuracy: 9.41%
+Epoch: 1	100.00% complete.
+Epoch: 1 	Training Loss: 4.1746 	Validation Loss: 3.9017
+		Training Accuracy: 10.75%	 Validation Accuracy: 15.95%
+
+Best epoch: 1 with loss: 3.90 and acc: 15.95%
+#+end_example
+
+**** DONE Plot Minimal CNN Architecture on Tensorboard
+     CLOSED: [2019-12-01 Sun 14:36]
+
+     #+begin_src ipython :cache no :async t
+     model = Net()
+
+     # if you want to show the input tensor, set requires_grad=True
+     res = model(torch.autograd.Variable(images, requires_grad=True))
+
+     writer = SummaryWriter()
+     writer.add_graph(model, images)
+
+     writer.close()
+     #+end_src
+
+     #+RESULTS:
+     : 51 - 2f891c78-b27f-47d9-8934-423fe0f0cebb
+
+
+*** IN-PROGRESS CNN Architectures
+
+**** DONE Basic Idea
+     CLOSED: [2019-12-02 Mon 13:30]
+
+     Check at the constructed presentation.
+
+     Moreover read about it in the following slides set. Very well done and explained.
+     [[https://icml.cc/2016/tutorials/icml2016_tutorial_deep_residual_networks_kaiminghe.pdf][this link]].
+
+     For instance in the Inception design entire micro-architectures
+     which are “modules” inside the network that learn local features
+     at different scales (i.e., 1×1, 3×3, and 5×5) and then combine
+     the outputs.
+
+     [[file:~/Desktop/Screenshots/Bildschirmfoto%202019-11-30%20um%2011.36.37.png]]
+
+     The issue with such Architectures is that they rely on a
+     pre-defined image size. For instance according to [[https://github.com/keras-team/keras/issues/5154#issuecomment-274792482][this]] the lower
+     threshold for training using ResNet is 197x197, while the default
+     is 224x224. For the dataset of use this is no problem. For very
+     low definition dataset it might be a stronger limit. Try for
+     instance to expand the CIFAR10 3x32x32 dataset in a 256x256
+     image. Not trivial as it seems.
+
+**** DONE ResNet50
+     CLOSED: [2019-12-02 Mon 13:30]
+
+***** DONE Model Specification
+      CLOSED: [2019-12-03 Tue 20:51]
+
+      #+begin_src ipython
+      ## Download the ResNet50 Architecture from Torchvision
+      model = models.resnet50(pretrained=True)
+
+      ## freeze the parameters
+      for param in model.parameters():
+	  param.requires_grad = False
+
+      ## reshape the last layer to suit your needs and train it
+      model.fc = nn.Sequential(nn.Linear(model.fc.in_features,500),
+			       nn.ReLU(),
+			       nn.Dropout(0.2),
+			       nn.Linear(500,101),
+			       nn.ReLU())
+      #+end_src
+
+      #+RESULTS:
+      : # Out[43]:
+
+      Print the underlying Architecture. See how the plain model has
+      around 25 Mio. Parameters. Moreover it takes as much as 97 MB of
+      memory for saving the parameters and 0.5 GB to save the entire
+      model. It is big. No Way to train it without transfer
+      learning. Extremely painful.
+
+      #+begin_src ipython :results output :results output
+      summary(model, input_size=(3, 256, 256), batch_size=BATCH_SIZE) 
+      #+end_src
+
+      #+RESULTS:
+      #+begin_example
+      ----------------------------------------------------------------
+	      Layer (type)               Output Shape         Param #
+      ================================================================
+		  Conv2d-1          [4, 64, 128, 128]           9,408
+	     BatchNorm2d-2          [4, 64, 128, 128]             128
+		    ReLU-3          [4, 64, 128, 128]               0
+	       MaxPool2d-4            [4, 64, 64, 64]               0
+		  Conv2d-5            [4, 64, 64, 64]           4,096
+	     BatchNorm2d-6            [4, 64, 64, 64]             128
+		    ReLU-7            [4, 64, 64, 64]               0
+		  Conv2d-8            [4, 64, 64, 64]          36,864
+	     BatchNorm2d-9            [4, 64, 64, 64]             128
+		   ReLU-10            [4, 64, 64, 64]               0
+		 Conv2d-11           [4, 256, 64, 64]          16,384
+	    BatchNorm2d-12           [4, 256, 64, 64]             512
+		 Conv2d-13           [4, 256, 64, 64]          16,384
+	    BatchNorm2d-14           [4, 256, 64, 64]             512
+		   ReLU-15           [4, 256, 64, 64]               0
+	     Bottleneck-16           [4, 256, 64, 64]               0
+		 Conv2d-17            [4, 64, 64, 64]          16,384
+	    BatchNorm2d-18            [4, 64, 64, 64]             128
+		   ReLU-19            [4, 64, 64, 64]               0
+		 Conv2d-20            [4, 64, 64, 64]          36,864
+	    BatchNorm2d-21            [4, 64, 64, 64]             128
+		   ReLU-22            [4, 64, 64, 64]               0
+		 Conv2d-23           [4, 256, 64, 64]          16,384
+	    BatchNorm2d-24           [4, 256, 64, 64]             512
+		   ReLU-25           [4, 256, 64, 64]               0
+	     Bottleneck-26           [4, 256, 64, 64]               0
+		 Conv2d-27            [4, 64, 64, 64]          16,384
+	    BatchNorm2d-28            [4, 64, 64, 64]             128
+		   ReLU-29            [4, 64, 64, 64]               0
+		 Conv2d-30            [4, 64, 64, 64]          36,864
+	    BatchNorm2d-31            [4, 64, 64, 64]             128
+		   ReLU-32            [4, 64, 64, 64]               0
+		 Conv2d-33           [4, 256, 64, 64]          16,384
+	    BatchNorm2d-34           [4, 256, 64, 64]             512
+		   ReLU-35           [4, 256, 64, 64]               0
+	     Bottleneck-36           [4, 256, 64, 64]               0
+		 Conv2d-37           [4, 128, 64, 64]          32,768
+	    BatchNorm2d-38           [4, 128, 64, 64]             256
+		   ReLU-39           [4, 128, 64, 64]               0
+		 Conv2d-40           [4, 128, 32, 32]         147,456
+	    BatchNorm2d-41           [4, 128, 32, 32]             256
+		   ReLU-42           [4, 128, 32, 32]               0
+		 Conv2d-43           [4, 512, 32, 32]          65,536
+	    BatchNorm2d-44           [4, 512, 32, 32]           1,024
+		 Conv2d-45           [4, 512, 32, 32]         131,072
+	    BatchNorm2d-46           [4, 512, 32, 32]           1,024
+		   ReLU-47           [4, 512, 32, 32]               0
+	     Bottleneck-48           [4, 512, 32, 32]               0
+		 Conv2d-49           [4, 128, 32, 32]          65,536
+	    BatchNorm2d-50           [4, 128, 32, 32]             256
+		   ReLU-51           [4, 128, 32, 32]               0
+		 Conv2d-52           [4, 128, 32, 32]         147,456
+	    BatchNorm2d-53           [4, 128, 32, 32]             256
+		   ReLU-54           [4, 128, 32, 32]               0
+		 Conv2d-55           [4, 512, 32, 32]          65,536
+	    BatchNorm2d-56           [4, 512, 32, 32]           1,024
+		   ReLU-57           [4, 512, 32, 32]               0
+	     Bottleneck-58           [4, 512, 32, 32]               0
+		 Conv2d-59           [4, 128, 32, 32]          65,536
+	    BatchNorm2d-60           [4, 128, 32, 32]             256
+		   ReLU-61           [4, 128, 32, 32]               0
+		 Conv2d-62           [4, 128, 32, 32]         147,456
+	    BatchNorm2d-63           [4, 128, 32, 32]             256
+		   ReLU-64           [4, 128, 32, 32]               0
+		 Conv2d-65           [4, 512, 32, 32]          65,536
+	    BatchNorm2d-66           [4, 512, 32, 32]           1,024
+		   ReLU-67           [4, 512, 32, 32]               0
+	     Bottleneck-68           [4, 512, 32, 32]               0
+		 Conv2d-69           [4, 128, 32, 32]          65,536
+	    BatchNorm2d-70           [4, 128, 32, 32]             256
+		   ReLU-71           [4, 128, 32, 32]               0
+		 Conv2d-72           [4, 128, 32, 32]         147,456
+	    BatchNorm2d-73           [4, 128, 32, 32]             256
+		   ReLU-74           [4, 128, 32, 32]               0
+		 Conv2d-75           [4, 512, 32, 32]          65,536
+	    BatchNorm2d-76           [4, 512, 32, 32]           1,024
+		   ReLU-77           [4, 512, 32, 32]               0
+	     Bottleneck-78           [4, 512, 32, 32]               0
+		 Conv2d-79           [4, 256, 32, 32]         131,072
+	    BatchNorm2d-80           [4, 256, 32, 32]             512
+		   ReLU-81           [4, 256, 32, 32]               0
+		 Conv2d-82           [4, 256, 16, 16]         589,824
+	    BatchNorm2d-83           [4, 256, 16, 16]             512
+		   ReLU-84           [4, 256, 16, 16]               0
+		 Conv2d-85          [4, 1024, 16, 16]         262,144
+	    BatchNorm2d-86          [4, 1024, 16, 16]           2,048
+		 Conv2d-87          [4, 1024, 16, 16]         524,288
+	    BatchNorm2d-88          [4, 1024, 16, 16]           2,048
+		   ReLU-89          [4, 1024, 16, 16]               0
+	     Bottleneck-90          [4, 1024, 16, 16]               0
+		 Conv2d-91           [4, 256, 16, 16]         262,144
+	    BatchNorm2d-92           [4, 256, 16, 16]             512
+		   ReLU-93           [4, 256, 16, 16]               0
+		 Conv2d-94           [4, 256, 16, 16]         589,824
+	    BatchNorm2d-95           [4, 256, 16, 16]             512
+		   ReLU-96           [4, 256, 16, 16]               0
+		 Conv2d-97          [4, 1024, 16, 16]         262,144
+	    BatchNorm2d-98          [4, 1024, 16, 16]           2,048
+		   ReLU-99          [4, 1024, 16, 16]               0
+	    Bottleneck-100          [4, 1024, 16, 16]               0
+		Conv2d-101           [4, 256, 16, 16]         262,144
+	   BatchNorm2d-102           [4, 256, 16, 16]             512
+		  ReLU-103           [4, 256, 16, 16]               0
+		Conv2d-104           [4, 256, 16, 16]         589,824
+	   BatchNorm2d-105           [4, 256, 16, 16]             512
+		  ReLU-106           [4, 256, 16, 16]               0
+		Conv2d-107          [4, 1024, 16, 16]         262,144
+	   BatchNorm2d-108          [4, 1024, 16, 16]           2,048
+		  ReLU-109          [4, 1024, 16, 16]               0
+	    Bottleneck-110          [4, 1024, 16, 16]               0
+		Conv2d-111           [4, 256, 16, 16]         262,144
+	   BatchNorm2d-112           [4, 256, 16, 16]             512
+		  ReLU-113           [4, 256, 16, 16]               0
+		Conv2d-114           [4, 256, 16, 16]         589,824
+	   BatchNorm2d-115           [4, 256, 16, 16]             512
+		  ReLU-116           [4, 256, 16, 16]               0
+		Conv2d-117          [4, 1024, 16, 16]         262,144
+	   BatchNorm2d-118          [4, 1024, 16, 16]           2,048
+		  ReLU-119          [4, 1024, 16, 16]               0
+	    Bottleneck-120          [4, 1024, 16, 16]               0
+		Conv2d-121           [4, 256, 16, 16]         262,144
+	   BatchNorm2d-122           [4, 256, 16, 16]             512
+		  ReLU-123           [4, 256, 16, 16]               0
+		Conv2d-124           [4, 256, 16, 16]         589,824
+	   BatchNorm2d-125           [4, 256, 16, 16]             512
+		  ReLU-126           [4, 256, 16, 16]               0
+		Conv2d-127          [4, 1024, 16, 16]         262,144
+	   BatchNorm2d-128          [4, 1024, 16, 16]           2,048
+		  ReLU-129          [4, 1024, 16, 16]               0
+	    Bottleneck-130          [4, 1024, 16, 16]               0
+		Conv2d-131           [4, 256, 16, 16]         262,144
+	   BatchNorm2d-132           [4, 256, 16, 16]             512
+		  ReLU-133           [4, 256, 16, 16]               0
+		Conv2d-134           [4, 256, 16, 16]         589,824
+	   BatchNorm2d-135           [4, 256, 16, 16]             512
+		  ReLU-136           [4, 256, 16, 16]               0
+		Conv2d-137          [4, 1024, 16, 16]         262,144
+	   BatchNorm2d-138          [4, 1024, 16, 16]           2,048
+		  ReLU-139          [4, 1024, 16, 16]               0
+	    Bottleneck-140          [4, 1024, 16, 16]               0
+		Conv2d-141           [4, 512, 16, 16]         524,288
+	   BatchNorm2d-142           [4, 512, 16, 16]           1,024
+		  ReLU-143           [4, 512, 16, 16]               0
+		Conv2d-144             [4, 512, 8, 8]       2,359,296
+	   BatchNorm2d-145             [4, 512, 8, 8]           1,024
+		  ReLU-146             [4, 512, 8, 8]               0
+		Conv2d-147            [4, 2048, 8, 8]       1,048,576
+	   BatchNorm2d-148            [4, 2048, 8, 8]           4,096
+		Conv2d-149            [4, 2048, 8, 8]       2,097,152
+	   BatchNorm2d-150            [4, 2048, 8, 8]           4,096
+		  ReLU-151            [4, 2048, 8, 8]               0
+	    Bottleneck-152            [4, 2048, 8, 8]               0
+		Conv2d-153             [4, 512, 8, 8]       1,048,576
+	   BatchNorm2d-154             [4, 512, 8, 8]           1,024
+		  ReLU-155             [4, 512, 8, 8]               0
+		Conv2d-156             [4, 512, 8, 8]       2,359,296
+	   BatchNorm2d-157             [4, 512, 8, 8]           1,024
+		  ReLU-158             [4, 512, 8, 8]               0
+		Conv2d-159            [4, 2048, 8, 8]       1,048,576
+	   BatchNorm2d-160            [4, 2048, 8, 8]           4,096
+		  ReLU-161            [4, 2048, 8, 8]               0
+	    Bottleneck-162            [4, 2048, 8, 8]               0
+		Conv2d-163             [4, 512, 8, 8]       1,048,576
+	   BatchNorm2d-164             [4, 512, 8, 8]           1,024
+		  ReLU-165             [4, 512, 8, 8]               0
+		Conv2d-166             [4, 512, 8, 8]       2,359,296
+	   BatchNorm2d-167             [4, 512, 8, 8]           1,024
+		  ReLU-168             [4, 512, 8, 8]               0
+		Conv2d-169            [4, 2048, 8, 8]       1,048,576
+	   BatchNorm2d-170            [4, 2048, 8, 8]           4,096
+		  ReLU-171            [4, 2048, 8, 8]               0
+	    Bottleneck-172            [4, 2048, 8, 8]               0
+      AdaptiveAvgPool2d-173            [4, 2048, 1, 1]               0
+		Linear-174                   [4, 500]       1,024,500
+		  ReLU-175                   [4, 500]               0
+	       Dropout-176                   [4, 500]               0
+		Linear-177                   [4, 101]          50,601
+		  ReLU-178                   [4, 101]               0
+      ================================================================
+      Total params: 24,583,133
+      Trainable params: 1,075,101
+      Non-trainable params: 23,508,032
+      ----------------------------------------------------------------
+      Input size (MB): 3.00
+      Forward/backward pass size (MB): 1497.11
+      Params size (MB): 93.78
+      Estimated Total Size (MB): 1593.89
+      ----------------------------------------------------------------
+      #+end_example
+
+      Compare it to the simple model above.
+
+***** DONE Train the last layer of ResNet50
+      CLOSED: [2019-12-01 Sun 17:02]
+      
+      Train the Model
+
+      #+begin_src ipython :results output
+      resCNN, historyResCNN = train(model,
+				    criterion,
+				    dataloaders['train'],
+				    dataloaders['validate'],
+				    './resNetThoroughTrain.pth',
+				    max_epochs_stop=1,
+				    n_epochs=2,
+				    print_every=1)
+      #+end_src
+
+
+      #+RESULTS:
+      #+begin_example
+      Starting Training from Scratch.
+
+      Epoch: 0	100.00% complete.
+      Epoch: 0 	Training Loss: 3.5206 	Validation Loss: 2.6832
+		      Training Accuracy: 26.23%	 Validation Accuracy: 44.71%
+      Epoch: 1	100.00% complete.
+      Epoch: 1 	Training Loss: 2.7107 	Validation Loss: 1.9157
+		      Training Accuracy: 43.17%	 Validation Accuracy: 58.49%
+
+      Best epoch: 1 with loss: 1.92 and acc: 58.49%
+      #+end_example
+
+      *Notice 20% accuracy gain; training 4% the number of parameters*
+
+***** DONE Thorough training with data augmentation
+      CLOSED: [2019-12-03 Tue 21:59]
+
+      #+begin_src ipython :results output
+      resAugCNN, historyResAugCNN = train(model,
+					  criterion,
+					  dataloadersAugmented['train'],
+					  dataloadersAugmented['validate'],
+					  './resnetAug.pth',
+					  max_epochs_stop=1,
+					  n_epochs=2,
+					  print_every=1)
+      #+end_src
+
+      #+RESULTS:
+      #+begin_example
+      Starting Training from Scratch.
+
+      Epoch: 0 	Training Loss: 4.1214 	Validation Loss: 3.6563
+                Training Accuracy: 14.12%	 Validation Accuracy: 20.80%
+
+      Epoch: 1 	Training Loss: 3.5958 	Validation Loss: 2.9910
+                Training Accuracy: 24.58%	 Validation Accuracy: 36.09%
+
+      Best epoch: 1 with loss: 2.99 and acc: 36.09%
+      #+end_example
+
+***** DONE Plot ResNet50 Architecture
+      CLOSED: [2019-12-02 Mon 13:29]
+
+     #+begin_src ipython :cache no :async t
+     # if you want to show the input tensor, set requires_grad=True
+     res = resCNN(torch.autograd.Variable(images, requires_grad=True))
+
+     writer = SummaryWriter()
+     writer.add_graph(resCNN, images)
+
+     writer.close()
+     #+end_src
+
+     #+RESULTS:
+     : 55 - 4ab375c0-72b5-4eac-beff-a975239928e9
+
+*** DONE Compare the two models
+    CLOSED: [2019-12-02 Mon 13:29]
+
+#+begin_src ipython :results file
+plt.figure(figsize=(8, 6))
+for c in ['train_loss', 'valid_loss']:
+    plt.plot(
+        historysimpleCNN[c], label= 'Simple CNN' + c)
+for c in ['train_loss', 'valid_loss']:
+    plt.plot(
+        historyResCNN[c], label= 'Resnet CNN' + c)
+plt.legend()
+plt.xlabel('Epoch')
+plt.ylabel('Average Loss')
+plt.title('Training and Validation Loss')
+#+end_src
+
+#+RESULTS:
+[[file:56 - 212cf272-a583-4b2b-9120-44e2f156de2d]]
+[[file:# Out[479]:
+: Text(0.5, 1.0, 'Training and Validation Loss')
+[[file:./obipy-resources/ZN0u6d.png]]]]
+
+
+#+begin_src ipython :results file
+plt.figure(figsize=(8, 6))
+for c in ['train_acc', 'valid_acc']:
+    plt.plot(
+        100 * historysimpleCNN[c], label= 'Simple CNN' + c)
+for c in ['train_acc', 'valid_acc']:
+    plt.plot(
+        100*historyResCNN[c], label= 'Resnet CNN' + c)
+plt.legend()
+plt.xlabel('Epoch')
+plt.ylabel('Average Accuracy')
+plt.title('Training and Validation Accuracy') 
+#+end_src
+
+#+RESULTS:
+[[file:57 - 363e9f4f-14e9-467f-aa62-2e99665452cf]]
+[[file:# Out[483]:
+: Text(0.5, 1.0, 'Training and Validation Accuracy')
+[[file:./obipy-resources/intF94.png]]]]
+
+
+*** DONE Test Both Models
+    CLOSED: [2019-12-02 Mon 13:29]
+
+**** DONE Test the model on an Image Sample
+     CLOSED: [2019-11-30 Sat 11:51]
+
+     We will check this by predicting the class label that the neural
+     network outputs, and checking it against the ground-truth. If the
+     prediction is correct, we add the sample to the list of correct
+     predictions.
+
+***** DONE Test 
+      CLOSED: [2019-12-01 Sun 14:31]
+
+       Take testing images
+
+       #+begin_src ipython
+       dataiter = iter(dataloaders['test'])
+       images, labels = dataiter.next()
+       #+end_src
+
+       #+RESULTS:
+       : # Out[74]:
+
+       #+begin_src ipython :results file
+       # print images
+       imshow_tensor(torchvision.utils.make_grid(images))
+       #+end_src
+
+       #+RESULTS:
+       [[file:# Out[27]:
+       : <matplotlib.axes._subplots.AxesSubplot at 0x13bcfbb50>
+       [[file:./obipy-resources/04B6kM.png]]]]
+
+       
+      Upload the obtained parameter to the model and check at the result for
+      the current batch of images.
+
+****** DONE Import ResNet
+       CLOSED: [2019-12-02 Mon 12:37]
+
+Simple ResNet
+
+       #+begin_src ipython
+       PATH = './resNetThoroughTrain.pth' ## some file convention in the pytorch
+       ## community to save models
+
+       resnet = models.resnet50(pretrained=True) ## specify an empty model with
+       ## the above specified
+					      ## architecture.
+
+       resnet.fc = nn.Sequential(nn.Linear(resnet.fc.in_features,500),
+			      nn.ReLU(),
+			      nn.Dropout(0.2),
+			      nn.Linear(500,101),
+			      nn.ReLU())
+
+       for param in resnet.parameters():
+	   param.requires_grad = False
+
+
+       resnet.load_state_dict(torch.load(PATH)) ## set the parameters of the
+						## model to the previously
+						## trained and saved one
+       #+end_src
+
+       #+RESULTS:
+       : # Out[52]:
+       : : <All keys matched successfully>
+
+Augmented ResNet50
+
+       #+begin_src ipython
+       PATH = './resnetAug.pth' ## some file convention in the pytorch
+       ## community to save models
+
+       augResnet = models.resnet50(pretrained=True) ## specify an empty model with
+       ## the above specified
+					      ## architecture.
+
+       augResnet.fc = nn.Sequential(nn.Linear(augResnet.fc.in_features,500),
+			      nn.ReLU(),
+			      nn.Dropout(0.2),
+			      nn.Linear(500,101),
+			      nn.ReLU())
+
+       for param in resnet.parameters():
+	   param.requires_grad = False
+
+
+       augResnet.load_state_dict(torch.load(PATH)) ## set the parameters of the
+                                                ## model to the previously
+					        ## trained and saved one
+       #+end_src
+
+       #+RESULTS:
+       : # Out[53]:
+       : : <All keys matched successfully>
+
+****** DONE Import Basic CNN
+       CLOSED: [2019-12-02 Mon 12:37]
+
+Simple Minimal CNN
+
+       #+begin_src ipython
+
+       PATH = './simpleCNN.pth' ## some file convention in the pytorch
+       ## community to save models
+
+       net = Net()
+
+       net.load_state_dict(torch.load(PATH)) ## set the parameters of the
+                                                ## model to the previously
+					        ## trained and saved one
+       #+end_src
+
+       #+RESULTS:
+       : # Out[54]:
+       : : <All keys matched successfully>
+
+Simple Minimal Augmented CNN
+
+       #+begin_src ipython
+
+       PATH = './simpleAugmentedCNN.pth' ## some file convention in the pytorch
+       ## community to save models
+
+       augNet = Net()
+
+       augNet.load_state_dict(torch.load(PATH)) ## set the parameters of the
+                                                ## model to the previously
+					        ## trained and saved one
+       #+end_src
+
+       #+RESULTS:
+       : # Out[56]:
+       : : <All keys matched successfully>
+
+****** DONE Look at the prediction
+       CLOSED: [2019-12-02 Mon 12:37]
+
+       Predict 
+
+       #+begin_src ipython
+       res_outputs = resnet(images)
+       simple_outputs = net(images)
+       resAug_outputs = augResnet(images)
+       simpleAug_outputs = augNet(images)
+
+       #+end_src
+
+       #+RESULTS:
+       : # Out[60]:
+
+       #+begin_src ipython :results output
+       _, res_predicted = torch.max(res_outputs, 1) 
+       _, simple_predicted = torch.max(simple_outputs, 1) 
+       _, resAug_predicted = torch.max(resAug_outputs, 1) 
+       _, simpleAug_predicted = torch.max(simpleAug_outputs, 1) 
+
+       print('ResNet Prediction')
+       print('Predicted: ', ' '.join('%5s' % idx_to_class[int(res_predicted[j])]
+				     for j in range(4)))
+
+       print('\nSimple CNN Prediction')
+       print('Predicted: ', ' '.join('%5s' % idx_to_class[int(simple_predicted[j])]
+				     for j in range(4)))
+
+       # print('\nResNet Augmented Prediction')
+       # print('Predicted: ', ' '.join('%5s' % idx_to_class[int(resAug_predicted[j])]
+       # 			      for j in range(4)))
+
+       # print('\nSimple Augmented CNN Prediction')
+       # print('Predicted: ', ' '.join('%5s' % idx_to_class[int(simpleAug_predicted[j])]
+       #         		       for j in range(4)))
+       #+end_src
+
+       #+RESULTS:
+       : ResNet Prediction
+       : Predicted:  pizza menorah Motorbikes  ibis
+       : 
+       : Simple CNN Prediction
+       : Predicted:  accordion joshua_tree Motorbikes kangaroo
+
+       So as expected better ResNet Prediction
+
+***** DONE Test on Different Color Scale
+      CLOSED: [2019-12-01 Sun 14:31]
+
+
+
+       #+begin_src ipython
+       dataiter = iter(dataloaders['test'])
+       images, labels = dataiter.next()
+       #+end_src
+
+       #+RESULTS:
+       : # Out[89]:
+
+       #+begin_src ipython :results file
+       # print images
+       imshow_tensor(torchvision.utils.make_grid(images))
+       #+end_src
+
+       #+RESULTS:
+       [[file:# Out[90]:
+       : <matplotlib.axes._subplots.AxesSubplot at 0x128d78f90>
+       [[file:./obipy-resources/sWmxUb.png]]]]
+
+
+*HSV*
+
+      #+begin_src ipython
+      for i in range(images.shape[0]):
+	  images[i,:,:,:]   = transforms.ToTensor()(_random_colour_space(transforms.ToPILImage()(images[i,:,:,:])))
+      #+end_src
+
+      #+RESULTS:
+      : # Out[81]:
+
+*ColorJitter*
+
+#+begin_src ipython
+      ## less strong colour transformation
+      for i in range(images.shape[0]):
+	  images[i,:,:,:]   = transforms.ToTensor()(transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)(transforms.ToPILImage()(images[i,:,:,:])))
+#+end_src
+
+#+RESULTS:
+: # Out[92]:
+
+      #+begin_src ipython :results file
+      # print images
+      img_NotNormalized_tensor(torchvision.utils.make_grid(images))
+      #+end_src
+
+
+      Look at it bigger on tensorboard
+
+      #+begin_src ipython
+      writer = SummaryWriter()
+      grid = torchvision.utils.make_grid(images)
+      writer.add_image('images', grid, 0)
+      writer.close()
+      #+end_src
+
+      #+RESULTS:
+      : # Out[85]:
+
+       Predict 
+
+       #+begin_src ipython
+       res_outputs = resnet(images)
+       simple_outputs = net(images)
+       resAug_outputs = augResnet(images)
+       simpleAug_outputs = augNet(images)
+
+       #+end_src
+
+       #+RESULTS:
+       : # Out[83]:
+
+       #+begin_src ipython :results output
+       _, res_predicted = torch.max(res_outputs, 1) 
+       _, simple_predicted = torch.max(simple_outputs, 1) 
+       _, resAug_predicted = torch.max(resAug_outputs, 1) 
+       _, simpleAug_predicted = torch.max(simpleAug_outputs, 1) 
+
+       print('ResNet Prediction')
+       print('Predicted: ', ' '.join('%5s' % idx_to_class[int(res_predicted[j])]
+				     for j in range(4)))
+
+       print('\nSimple CNN Prediction')
+       print('Predicted: ', ' '.join('%5s' % idx_to_class[int(simple_predicted[j])]
+				     for j in range(4)))
+
+       print('\nResNet Augmented Prediction')
+       print('Predicted: ', ' '.join('%5s' % idx_to_class[int(resAug_predicted[j])]
+				     for j in range(4)))
+
+       print('\nSimple Augmented CNN Prediction')
+       print('Predicted: ', ' '.join('%5s' % idx_to_class[int(simpleAug_predicted[j])]
+        			      for j in range(4)))
+       #+end_src
+
+       #+RESULTS:
+       #+begin_example
+       ResNet Prediction
+       Predicted:  brain starfish airplanes laptop
+
+       Simple CNN Prediction
+       Predicted:  wrench wrench wrench wrench
+
+       ResNet Augmented Prediction
+       Predicted:  brain sunflower airplanes car_side
+
+       Simple Augmented CNN Prediction
+       Predicted:  airplanes airplanes airplanes airplanes
+       #+end_example
+
+
+      It is easy to see if repeating the experiment above that all the pics
+      with this color scale are associated to umbrella. What did the CNN actually learn?
+
+ 
+* SSH into Watson and Colab
+
+[[https://gist.github.com/yashkumaratri/204755a85977586cebbb58dc971496da][Readme]]
+
+
+* TODO Class Activation Mapping
+
+Fun way for computer vision to see how the model made its decisionn..
+
+
+* References
+
+1. [[https://learning.oreilly.com/library/view/programming-pytorch-for/9781492045342/][Programming Pytorch for DeepLearning]]
+
+2. [[https://towardsdatascience.com/transfer-learning-with-convolutional-neural-networks-in-pytorch-dd09190245ce][Will Koehrsen Post]]
+
+3. [[https://icml.cc/2016/tutorials/icml2016_tutorial_deep_residual_networks_kaiminghe.pdf][Kaiming He Presentation]]
+
